@@ -1,0 +1,22 @@
+export APIREGION="eu-west-2"
+export APIS=$(aws apigateway get-rest-apis --region $APIREGION --output json | jq '.items[] | "\(.id):\(.name)"' )
+export PAGER=""
+export TIME=$(date +%Y-%m-%d-%H%M%S)
+mkdir json-$TIME
+
+for api in $(echo "${APIS}")
+do
+    declare id=$(echo $api | cut -d: -f1 | sed 's/"//g') 
+    declare apin=$(echo $api | cut -d: -f2 | sed 's/"//g')
+    echo "---------------------------------"
+    echo $apin : $id
+    #aws apigateway get-rest-api --rest-api-id $api --region $APIREGION
+    declare allstages=$(aws apigateway get-stages --rest-api-id $id --region $APIREGION --output json | jq -r '.item[].stageName')
+    declare -i i=0
+    for stage in $(echo "${allstages}")
+    do
+        i=$((i+1))
+        echo $i:$stage
+        aws apigateway get-export --parameters extensions='apigateway' --rest-api-id $id --stage-name $stage --export-type swagger ./json-$TIME/$apin-$id-$stage.json --region $APIREGION
+    done
+done
